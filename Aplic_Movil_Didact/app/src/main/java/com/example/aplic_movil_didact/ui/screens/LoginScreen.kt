@@ -1,25 +1,34 @@
 package com.example.aplic_movil_didact.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -32,11 +41,23 @@ import com.example.aplic_movil_didact.viewmodels.LoginViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    loginViewModel: LoginViewModel = viewModel()
+    onLoginSuccess: (role: String) -> Unit,
+    loginViewModel: LoginViewModel = viewModel(),
 ) {
     val uiState by loginViewModel.uiState.collectAsStateWithLifecycle()
     var roleExpanded by remember { mutableStateOf(false) }
+
+    // Animación pulsante en el ícono principal
+    val infiniteTransition = rememberInfiniteTransition(label = "icon_pulse")
+    val iconScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "icon_scale"
+    )
 
     Scaffold { innerPadding ->
         Column(
@@ -53,7 +74,9 @@ fun LoginScreen(
                 imageVector = Icons.Filled.School,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier
+                    .size(72.dp)
+                    .scale(iconScale)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -157,10 +180,7 @@ fun LoginScreen(
                     )
 
                     // Selector de perfil
-                    ExposedDropdownMenuBox(
-                        expanded = roleExpanded,
-                        onExpandedChange = { roleExpanded = it }
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
                             value = uiState.selectedRole,
                             onValueChange = {},
@@ -170,7 +190,10 @@ fun LoginScreen(
                                 Icon(Icons.Filled.Person, contentDescription = null)
                             },
                             trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = roleExpanded)
+                                Icon(
+                                    if (roleExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                    contentDescription = null
+                                )
                             },
                             isError = uiState.roleError != null,
                             supportingText = {
@@ -178,13 +201,18 @@ fun LoginScreen(
                                     Text(it, color = MaterialTheme.colorScheme.error)
                                 }
                             },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor()
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        ExposedDropdownMenu(
+                        // Overlay para capturar el tap sin importar el estado del teclado
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { roleExpanded = !roleExpanded }
+                        )
+                        DropdownMenu(
                             expanded = roleExpanded,
-                            onDismissRequest = { roleExpanded = false }
+                            onDismissRequest = { roleExpanded = false },
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             loginViewModel.roles.forEach { role ->
                                 DropdownMenuItem(
@@ -203,27 +231,24 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
                     if (loginViewModel.validate()) {
-                        onLoginSuccess()
+                        onLoginSuccess(uiState.selectedRole)
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(44.dp)
             ) {
-                Icon(Icons.Filled.ExitToApp, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Ingresar",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "Ingresar")
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

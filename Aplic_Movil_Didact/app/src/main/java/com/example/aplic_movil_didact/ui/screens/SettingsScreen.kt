@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
@@ -11,7 +12,6 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,10 +23,10 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
-    var audioEnabled by remember { mutableStateOf(true) }
-    var largeTextEnabled by remember { mutableStateOf(false) }
-    var notificationsEnabled by remember { mutableStateOf(true) }
-    var highContrastEnabled by remember { mutableStateOf(false) }
+    var audioEnabled by remember { mutableStateOf(value = true) }
+    var largeTextEnabled by remember { mutableStateOf(value = false) }
+    var notificationsEnabled by remember { mutableStateOf(value = true) }
+    var highContrastEnabled by remember { mutableStateOf(value = false) }
 
     Scaffold(
         topBar = {
@@ -36,7 +36,7 @@ fun SettingsScreen() {
                     Icon(
                         Icons.Filled.Settings,
                         contentDescription = null,
-                        modifier = Modifier.padding(start = 12.dp)
+                        modifier = Modifier.padding(start = 12.dp),
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -58,7 +58,7 @@ fun SettingsScreen() {
 
             SettingsSection(title = "Accesibilidad") {
                 SettingsToggleItem(
-                    icon = Icons.Filled.VolumeUp,
+                    icon = Icons.AutoMirrored.Filled.VolumeUp,
                     title = "Audio instruccional",
                     subtitle = "Reproducir audios de instrucciones automáticamente",
                     checked = audioEnabled,

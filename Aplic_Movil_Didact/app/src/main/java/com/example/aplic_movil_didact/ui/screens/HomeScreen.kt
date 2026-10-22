@@ -5,18 +5,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,16 +21,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.aplic_movil_didact.viewmodels.MainViewModel
 
 data class SubjectCard(
     val title: String,
     val description: String,
     val icon: ImageVector,
-    val units: Int
+    val units: Int,
 )
 
 private val subjects = listOf(
-    SubjectCard("Lenguaje y Comunicación", "Lectura, escritura y comprensión lectora", Icons.Filled.MenuBook, 4),
+    SubjectCard("Lenguaje y Comunicación", "Lectura, escritura y comprensión lectora", Icons.AutoMirrored.Filled.MenuBook, 4),
     SubjectCard("Matemática", "Números, operaciones y geometría", Icons.Filled.Calculate, 4),
     SubjectCard("Ciencias Naturales", "Seres vivos, materia y energía", Icons.Filled.Science, 3),
     SubjectCard("Historia y Geografía", "Sociedad, territorio y tiempo histórico", Icons.Filled.Public, 3)
@@ -41,7 +39,9 @@ private val subjects = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: com.example.aplic_movil_didact.viewmodels.MainViewModel) {
+fun HomeScreen(
+    @Suppress("UNUSED_PARAMETER") viewModel: MainViewModel
+) {
     var expandedCard by remember { mutableStateOf<String?>(null) }
 
     Scaffold(

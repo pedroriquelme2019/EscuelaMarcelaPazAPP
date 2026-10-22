@@ -47,11 +47,23 @@ class LoginViewModel : ViewModel() {
         var passwordError: String? = null
         var roleError: String? = null
 
+        val dominioEsperado = when (state.selectedRole) {
+            "Estudiante" -> "@emp.cl"
+            "Docente", "UTP / Administrador" -> "@docente.cl"
+            else -> null
+        }
+
         if (state.email.isBlank()) {
             emailError = "El correo es requerido"
             valid = false
         } else if (!Patterns.EMAIL_ADDRESS.matcher(state.email).matches()) {
             emailError = "Ingresa un correo válido"
+            valid = false
+        } else if (dominioEsperado != null && !state.email.endsWith(dominioEsperado)) {
+            emailError = when (state.selectedRole) {
+                "Estudiante" -> "Los estudiantes deben usar @emp.cl"
+                else -> "Docentes y UTP deben usar @docente.cl"
+            }
             valid = false
         }
 

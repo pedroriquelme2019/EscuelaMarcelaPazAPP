@@ -118,7 +118,7 @@ fun TaskScreen(
                         readOnly = true,
                         label = { Text("Seleccionar estudiante") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = alumnoMenuExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
                     )
                     ExposedDropdownMenu(expanded = alumnoMenuExpanded, onDismissRequest = { alumnoMenuExpanded = false }) {
                         estudiantesFicticios.forEach { nombre ->

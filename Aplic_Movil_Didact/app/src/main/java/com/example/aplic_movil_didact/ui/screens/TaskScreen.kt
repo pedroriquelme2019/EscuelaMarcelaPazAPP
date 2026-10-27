@@ -3,9 +3,14 @@ package com.example.aplic_movil_didact.ui.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -22,7 +27,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.aplic_movil_didact.data.entity.EntregaEntity
@@ -47,8 +54,10 @@ fun TaskScreen(
     var estudianteSeleccionado by remember { mutableStateOf(estudiantesFicticios.first()) }
     var alumnoMenuExpanded by remember { mutableStateOf(false) }
     var entregada by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
 
+    // --- RECURSO DISPOSITIVO 1: Acceso al Sistema de Archivos / Almacenamiento ---
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
@@ -65,6 +74,9 @@ fun TaskScreen(
         }
     )
 
+    // --- RECURSO DISPOSITIVO 2: Motor de Vibración Háptica ---
+    val haptic = LocalHapticFeedback.current
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -77,16 +89,40 @@ fun TaskScreen(
             )
         }
     ) { innerPadding ->
-        if (entregada) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary)
+        // --- ANIMACIÓN 1 (IE 2.2.2): Transición fluida al cambiar el estado de entrega ---
+        AnimatedVisibility(
+            visible = entregada,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { 40 }),
+            exit = fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Text("¡Tarea entregada!", style = MaterialTheme.typography.headlineSmall)
-                    Text("El docente revisará tu respuesta pronto.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "El docente revisará tu respuesta pronto.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     OutlinedButton(onClick = onBack) { Text("Volver") }
                 }
             }
-        } else {
+        }
+
+        if (!entregada) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -95,18 +131,36 @@ fun TaskScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Context info
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
-                    Row(modifier = Modifier.padding(10.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Filled.School, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                // Info de asignatura
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(10.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.School,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Column {
                             Text(asignatura, style = MaterialTheme.typography.labelMedium)
-                            Text(unidadTitulo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                unidadTitulo,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
 
-                // Student selector
+                // Selector de estudiante
                 Text("Estudiante", style = MaterialTheme.typography.titleMedium)
                 ExposedDropdownMenuBox(
                     expanded = alumnoMenuExpanded,
@@ -118,13 +172,21 @@ fun TaskScreen(
                         readOnly = true,
                         label = { Text("Seleccionar estudiante") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = alumnoMenuExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
                     )
-                    ExposedDropdownMenu(expanded = alumnoMenuExpanded, onDismissRequest = { alumnoMenuExpanded = false }) {
+                    ExposedDropdownMenu(
+                        expanded = alumnoMenuExpanded,
+                        onDismissRequest = { alumnoMenuExpanded = false }
+                    ) {
                         estudiantesFicticios.forEach { nombre ->
                             DropdownMenuItem(
                                 text = { Text(nombre) },
-                                onClick = { estudianteSeleccionado = nombre; alumnoMenuExpanded = false }
+                                onClick = {
+                                    estudianteSeleccionado = nombre
+                                    alumnoMenuExpanded = false
+                                }
                             )
                         }
                     }
@@ -136,7 +198,9 @@ fun TaskScreen(
                     value = respuesta,
                     onValueChange = { respuesta = it },
                     placeholder = { Text("Escribe tu respuesta aquí...") },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 160.dp),
                     minLines = 6,
                     shape = RoundedCornerShape(8.dp)
                 )
@@ -147,6 +211,7 @@ fun TaskScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                // Carga de archivo
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -154,33 +219,56 @@ fun TaskScreen(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         if (archivoUri == null) {
-                            Icon(Icons.Filled.Upload, null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Adjuntar archivo", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Tamaño máximo: 2.560 MB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Filled.Upload,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "Adjuntar archivo",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "Tamaño máximo: 2.560 MB",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             OutlinedButton(onClick = { filePicker.launch(arrayOf("*/*")) }) {
-                                Icon(Icons.Filled.FolderOpen, null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Cargar un archivo")
                             }
                         } else {
-                            Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                             Text(
                                 text = nombreArchivo ?: "Archivo seleccionado",
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
                             )
-                            TextButton(onClick = { archivoUri = null; nombreArchivo = null }) { Text("Quitar archivo") }
+                            TextButton(onClick = { archivoUri = null; nombreArchivo = null }) {
+                                Text("Quitar archivo")
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // --- ANIMACIÓN 2 (IE 2.2.2): Efecto Spring/Rebote en el botón ---
                 val btnInteraction = remember { MutableInteractionSource() }
                 val btnPressed by btnInteraction.collectIsPressedAsState()
                 val btnScale by animateFloatAsState(
@@ -188,9 +276,13 @@ fun TaskScreen(
                     animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium),
                     label = "btnScale"
                 )
+
                 Button(
                     interactionSource = btnInteraction,
                     onClick = {
+                        // Activa la vibración háptica del dispositivo
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
                         contentViewModel.insertEntrega(
                             EntregaEntity(
                                 estudianteNombre = estudianteSeleccionado,
@@ -203,10 +295,15 @@ fun TaskScreen(
                         )
                         entregada = true
                     },
-                    modifier = Modifier.fillMaxWidth().graphicsLayer { scaleX = btnScale; scaleY = btnScale },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = btnScale
+                            scaleY = btnScale
+                        },
                     enabled = respuesta.isNotBlank() || archivoUri != null
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Entregar tarea")
                 }

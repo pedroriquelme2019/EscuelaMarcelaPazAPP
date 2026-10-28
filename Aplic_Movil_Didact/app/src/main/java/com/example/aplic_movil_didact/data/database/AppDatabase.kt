@@ -9,16 +9,24 @@ import com.example.aplic_movil_didact.data.dao.UnidadDao
 import com.example.aplic_movil_didact.data.entity.AsignaturaEntity
 import com.example.aplic_movil_didact.data.entity.EntregaEntity
 import com.example.aplic_movil_didact.data.entity.UnidadEntity
+import com.example.aplic_movil_didact.data.local.dao.UserDao
+import com.example.aplic_movil_didact.data.local.entity.UserEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Database(
-    entities = [AsignaturaEntity::class, UnidadEntity::class, EntregaEntity::class],
-    version = 2,
+    entities = [
+        UserEntity::class,
+        AsignaturaEntity::class,
+        UnidadEntity::class,
+        EntregaEntity::class
+    ],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun userDao(): UserDao
     abstract fun asignaturaDao(): AsignaturaDao
     abstract fun unidadDao(): UnidadDao
     abstract fun entregaDao(): EntregaDao
@@ -32,14 +40,18 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "mpazpro_db"
-                ).fallbackToDestructiveMigration().addCallback(object : Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        CoroutineScope(Dispatchers.IO).launch {
-                            INSTANCE?.let { prePopulate(it) }
+                )
+                    .fallbackToDestructiveMigration()
+                    .addCallback(object : Callback() {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            super.onCreate(db)
+                            CoroutineScope(Dispatchers.IO).launch {
+                                INSTANCE?.let { prePopulate(it) }
+                            }
                         }
-                    }
-                }).build().also { INSTANCE = it }
+                    })
+                    .build()
+                    .also { INSTANCE = it }
             }
         }
 

@@ -2,7 +2,7 @@ package com.example.aplic_movil_didact.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,20 +11,29 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.aplic_movil_didact.viewmodels.LoginViewModel
+import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen(
     loginViewModel: LoginViewModel,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: (SesionUsuario) -> Unit
 ) {
     val uiState by loginViewModel.uiState.collectAsStateWithLifecycle()
-    var roleExpanded by remember { mutableStateOf(false) }
+
+    // Cuando el login es correcto navegamos una sola vez
+    LaunchedEffect(uiState.sesion) {
+        uiState.sesion?.let {
+            onLoginSuccess(it)
+            loginViewModel.sesionConsumida()
+        }
+    }
 
     var logoVisible by remember { mutableStateOf(false) }
     var formVisible by remember { mutableStateOf(false) }
@@ -93,6 +102,7 @@ fun LoginScreen(
                     leadingIcon = { Icon(Icons.Filled.Email, contentDescription = null) },
                     isError = uiState.emailError != null,
                     supportingText = { uiState.emailError?.let { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -119,48 +129,31 @@ fun LoginScreen(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = uiState.selectedRole,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Perfil de acceso") },
-                        leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
-                        trailingIcon = {
-                            Icon(
-                                if (roleExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                                contentDescription = null
-                            )
-                        },
-                        isError = uiState.roleError != null,
-                        supportingText = { uiState.roleError?.let { Text(it, color = MaterialTheme.colorScheme.error) } },
-                        modifier = Modifier.fillMaxWidth()
+                // Ya no se elige el rol (punto 5): se detecta por el dominio del correo
+                AnimatedVisibility(
+                    visible = uiState.rolDetectado != null,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("Ingresarás como: ${uiState.rolDetectado ?: ""}") },
+                        leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null, modifier = Modifier.size(18.dp)) }
                     )
-                    Box(modifier = Modifier.matchParentSize().clickable { roleExpanded = !roleExpanded })
-                    DropdownMenu(
-                        expanded = roleExpanded,
-                        onDismissRequest = { roleExpanded = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        loginViewModel.roles.forEach { role ->
-                            DropdownMenuItem(
-                                text = { Text(role) },
-                                onClick = { loginViewModel.onRoleChange(role); roleExpanded = false },
-                                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) }
-                            )
-                        }
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = { if (loginViewModel.validate()) onLoginSuccess() },
+                    onClick = { loginViewModel.login() },
+                    enabled = !uiState.cargando,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Ingresar")
+                    if (uiState.cargando) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Ingresar")
+                    }
                 }
             }
         }

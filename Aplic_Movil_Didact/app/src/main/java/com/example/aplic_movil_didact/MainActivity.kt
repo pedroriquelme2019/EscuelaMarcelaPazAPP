@@ -6,33 +6,55 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.aplic_movil_didact.data.Roles
 import com.example.aplic_movil_didact.navigation.Screen
 import com.example.aplic_movil_didact.ui.screens.*
 import com.example.aplic_movil_didact.ui.theme.Aplic_Movil_DidactTheme
 import com.example.aplic_movil_didact.viewmodels.ContentViewModel
 import com.example.aplic_movil_didact.viewmodels.LoginViewModel
+import com.example.aplic_movil_didact.viewmodels.SesionUsuario
+import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
 
-data class BottomNavItem(val screen: Screen, val label: String, val icon: ImageVector)
+/** Pestañas de abajo. Cada rol ve solo las suyas (punto 6). */
+enum class Pestana(val label: String, val icon: ImageVector) {
+    INICIO("Inicio", Icons.Filled.Home),
+    MIS_NOTAS("Mis notas", Icons.Filled.Grade),
+    AVANCES("Avances", Icons.Filled.Assessment),
+    INFORMES("Informes", Icons.AutoMirrored.Filled.Assignment),
+    AJUSTES("Ajustes", Icons.Filled.Settings)
+}
+
+fun pestanasPara(rol: String): List<Pestana> = when (rol) {
+    Roles.DOCENTE -> listOf(Pestana.INICIO, Pestana.AVANCES, Pestana.INFORMES, Pestana.AJUSTES)
+    Roles.UTP -> listOf(Pestana.INICIO, Pestana.INFORMES, Pestana.AJUSTES)
+    else -> listOf(Pestana.INICIO, Pestana.MIS_NOTAS, Pestana.AJUSTES) // Estudiante
+}
 
 private val slideSpec = tween<IntOffset>(320)
 private val fadeSpec = tween<Float>(320)
@@ -70,9 +92,8 @@ fun AppNavigation() {
         composable(Screen.Login.route) {
             LoginScreen(
                 loginViewModel = loginViewModel,
-                onLoginSuccess = {
-                    val rol = loginViewModel.uiState.value.selectedRole
-                    rootNavController.navigate(Screen.Main.withRol(rol)) {
+                onLoginSuccess = { sesion ->
+                    rootNavController.navigate(Screen.Main.withSesion(sesion.email, sesion.nombre, sesion.rol)) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
@@ -80,41 +101,56 @@ fun AppNavigation() {
         }
         composable(
             route = Screen.Main.route,
-            arguments = listOf(navArgument(Screen.Main.ARG) { type = NavType.StringType })
+            arguments = listOf(
+                navArgument(Screen.Main.ARG_EMAIL) { type = NavType.StringType },
+                navArgument(Screen.Main.ARG_NOMBRE) { type = NavType.StringType },
+                navArgument(Screen.Main.ARG_ROL) { type = NavType.StringType }
+            )
         ) { backStackEntry ->
-            val rol = backStackEntry.arguments?.getString(Screen.Main.ARG) ?: "Estudiante"
-            MainScreen(rol = rol)
+            val args = backStackEntry.arguments
+            val sesion = SesionUsuario(
+                email = args?.getString(Screen.Main.ARG_EMAIL) ?: "",
+                nombre = args?.getString(Screen.Main.ARG_NOMBRE) ?: "",
+                rol = args?.getString(Screen.Main.ARG_ROL) ?: Roles.ESTUDIANTE
+            )
+            MainScreen(
+                sesion = sesion,
+                onCerrarSesion = {
+                    // Punto 4: cerrar sesión y volver al login para entrar con otro rol
+                    loginViewModel.cerrarSesion()
+                    rootNavController.navigate(Screen.Login.route) {
+                        popUpTo(rootNavController.graph.id) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }
 
 @Composable
-fun MainScreen(rol: String) {
-    val bottomNavController = rememberNavController()
+fun MainScreen(sesion: SesionUsuario, onCerrarSesion: () -> Unit) {
+    val navController = rememberNavController()
     val contentViewModel: ContentViewModel = viewModel()
+    val pestanas = remember(sesion.rol) { pestanasPara(sesion.rol) }
+    val pagerState = rememberPagerState(pageCount = { pestanas.size })
+    val scope = rememberCoroutineScope()
 
-    val bottomNavItems = buildList {
-        add(BottomNavItem(Screen.Home, "Inicio", Icons.Filled.Home))
-        if (rol == "Docente") add(BottomNavItem(Screen.Monitoreo, "Avances", Icons.Filled.Assessment))
-        add(BottomNavItem(Screen.Settings, "Ajustes", Icons.Filled.Settings))
-    }
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val enPestanas = backStackEntry?.destination?.route.let { it == null || it == Screen.Tabs.route }
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-                bottomNavItems.forEach { item ->
+                pestanas.forEachIndexed { index, pestana ->
                     NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
-                        selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true,
+                        icon = { Icon(pestana.icon, contentDescription = pestana.label) },
+                        label = { Text(pestana.label) },
+                        selected = pagerState.currentPage == index,
                         onClick = {
-                            bottomNavController.navigate(item.screen.route) {
-                                popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            if (!enPestanas) {
+                                navController.popBackStack(Screen.Tabs.route, inclusive = false)
                             }
+                            scope.launch { pagerState.animateScrollToPage(index) }
                         }
                     )
                 }
@@ -122,21 +158,25 @@ fun MainScreen(rol: String) {
         }
     ) { innerPadding ->
         NavHost(
-            navController = bottomNavController,
-            startDestination = Screen.Home.route,
+            navController = navController,
+            startDestination = Screen.Tabs.route,
             modifier = Modifier.padding(innerPadding),
-            enterTransition = { fadeIn(tween(280)) + scaleIn(tween(280), initialScale = 0.97f) },
-            exitTransition = { fadeOut(tween(200)) },
-            popEnterTransition = { fadeIn(tween(280)) + scaleIn(tween(280), initialScale = 0.97f) },
-            popExitTransition = { fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.97f) }
+            // Punto 13: al entrar a una asignatura/tarea la pantalla se desliza
+            enterTransition = { enterForward },
+            exitTransition = { exitForward },
+            popEnterTransition = { enterBack },
+            popExitTransition = { exitBack }
         ) {
-            composable(Screen.Home.route) {
-                HomeScreen(
+            composable(Screen.Tabs.route) {
+                PestanasDeslizables(
+                    pagerState = pagerState,
+                    pestanas = pestanas,
+                    sesion = sesion,
                     contentViewModel = contentViewModel,
-                    rol = rol,
                     onSubjectClick = { id, nombre ->
-                        bottomNavController.navigate(Screen.Subject.withAsignatura(id, nombre))
-                    }
+                        navController.navigate(Screen.Subject.withAsignatura(id, nombre))
+                    },
+                    onCerrarSesion = onCerrarSesion
                 )
             }
             composable(
@@ -145,17 +185,20 @@ fun MainScreen(rol: String) {
                     navArgument(Screen.Subject.ARG_ID) { type = NavType.IntType },
                     navArgument(Screen.Subject.ARG_NOMBRE) { type = NavType.StringType }
                 )
-            ) { backStackEntry ->
-                val asignaturaId = backStackEntry.arguments?.getInt(Screen.Subject.ARG_ID) ?: 0
-                val nombre = backStackEntry.arguments?.getString(Screen.Subject.ARG_NOMBRE) ?: ""
+            ) { entry ->
+                val asignaturaId = entry.arguments?.getInt(Screen.Subject.ARG_ID) ?: 0
+                val nombre = entry.arguments?.getString(Screen.Subject.ARG_NOMBRE) ?: ""
                 SubjectScreen(
                     asignaturaId = asignaturaId,
                     asignatura = nombre,
-                    rol = rol,
+                    sesion = sesion,
                     contentViewModel = contentViewModel,
-                    onBack = { bottomNavController.popBackStack() },
+                    onBack = { navController.popBackStack() },
                     onIniciarTarea = { titulo, asig, unidad ->
-                        bottomNavController.navigate(Screen.Task.withContext(titulo, asig, unidad))
+                        navController.navigate(Screen.Task.withContext(titulo, asig, unidad))
+                    },
+                    onRevisarTarea = { titulo, asig, unidad ->
+                        navController.navigate(Screen.Revisar.withContext(titulo, asig, unidad))
                     }
                 )
             }
@@ -166,23 +209,92 @@ fun MainScreen(rol: String) {
                     navArgument(Screen.Task.ARG_ASIGNATURA) { type = NavType.StringType },
                     navArgument(Screen.Task.ARG_UNIDAD) { type = NavType.StringType }
                 )
-            ) { backStackEntry ->
-                val titulo = backStackEntry.arguments?.getString(Screen.Task.ARG_TITLE) ?: ""
-                val asig = backStackEntry.arguments?.getString(Screen.Task.ARG_ASIGNATURA) ?: ""
-                val unidad = backStackEntry.arguments?.getString(Screen.Task.ARG_UNIDAD) ?: ""
+            ) { entry ->
                 TaskScreen(
-                    tareaTitle = titulo,
-                    asignatura = asig,
-                    unidadTitulo = unidad,
+                    tareaTitle = entry.arguments?.getString(Screen.Task.ARG_TITLE) ?: "",
+                    asignatura = entry.arguments?.getString(Screen.Task.ARG_ASIGNATURA) ?: "",
+                    unidadTitulo = entry.arguments?.getString(Screen.Task.ARG_UNIDAD) ?: "",
+                    sesion = sesion,
                     contentViewModel = contentViewModel,
-                    onBack = { bottomNavController.popBackStack() }
+                    onBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.Monitoreo.route) {
-                MonitoreoScreen(contentViewModel = contentViewModel)
+            composable(
+                route = Screen.Revisar.route,
+                arguments = listOf(
+                    navArgument(Screen.Revisar.ARG_TITLE) { type = NavType.StringType },
+                    navArgument(Screen.Revisar.ARG_ASIGNATURA) { type = NavType.StringType },
+                    navArgument(Screen.Revisar.ARG_UNIDAD) { type = NavType.StringType }
+                )
+            ) { entry ->
+                MonitoreoScreen(
+                    contentViewModel = contentViewModel,
+                    filtro = FiltroTarea(
+                        tareaTitle = entry.arguments?.getString(Screen.Revisar.ARG_TITLE) ?: "",
+                        asignatura = entry.arguments?.getString(Screen.Revisar.ARG_ASIGNATURA) ?: "",
+                        unidadTitulo = entry.arguments?.getString(Screen.Revisar.ARG_UNIDAD) ?: ""
+                    ),
+                    puedeCalificar = sesion.esDocente,
+                    onBack = { navController.popBackStack() }
+                )
             }
-            composable(Screen.Settings.route) {
-                SettingsScreen()
+        }
+    }
+}
+
+/**
+ * Punto 13: las pestañas principales se pueden cambiar deslizando el dedo
+ * (izquierda/derecha). Mientras se desliza, la página que sale se achica y
+ * se desvanece un poco.
+ */
+@Composable
+private fun PestanasDeslizables(
+    pagerState: PagerState,
+    pestanas: List<Pestana>,
+    sesion: SesionUsuario,
+    contentViewModel: ContentViewModel,
+    onSubjectClick: (Int, String) -> Unit,
+    onCerrarSesion: () -> Unit
+) {
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize()
+    ) { page ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    val offset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+                        .absoluteValue
+                        .coerceIn(0f, 1f)
+                    val escala = 1f - 0.08f * offset
+                    scaleX = escala
+                    scaleY = escala
+                    alpha = 1f - 0.5f * offset
+                }
+        ) {
+            when (pestanas[page]) {
+                Pestana.INICIO -> HomeScreen(
+                    contentViewModel = contentViewModel,
+                    sesion = sesion,
+                    onSubjectClick = onSubjectClick
+                )
+                Pestana.MIS_NOTAS -> MisNotasScreen(
+                    sesion = sesion,
+                    contentViewModel = contentViewModel
+                )
+                Pestana.AVANCES -> MonitoreoScreen(
+                    contentViewModel = contentViewModel,
+                    puedeCalificar = sesion.esDocente
+                )
+                Pestana.INFORMES -> InformesScreen(
+                    sesion = sesion,
+                    contentViewModel = contentViewModel
+                )
+                Pestana.AJUSTES -> SettingsScreen(
+                    sesion = sesion,
+                    onCerrarSesion = onCerrarSesion
+                )
             }
         }
     }

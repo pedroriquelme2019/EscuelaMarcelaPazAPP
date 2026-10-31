@@ -24,23 +24,32 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.aplic_movil_didact.data.entity.AsignaturaEntity
 import com.example.aplic_movil_didact.viewmodels.ContentViewModel
+import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     contentViewModel: ContentViewModel,
-    rol: String,
+    sesion: SesionUsuario,
     onSubjectClick: (Int, String) -> Unit = { _, _ -> }
 ) {
-    val esUTP = rol == "UTP / Administrador"
-    val asignaturas by contentViewModel
-        .getAsignaturas(soloHabilitadas = !esUTP)
+    val esUTP = sesion.esUTP
+    val asignaturas by remember(esUTP) { contentViewModel.getAsignaturas(soloHabilitadas = !esUTP) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mis Asignaturas") },
+                title = {
+                    Column {
+                        Text(if (sesion.esEstudiante) "Mis Asignaturas" else "Asignaturas del curso")
+                        Text(
+                            "Hola, ${sesion.nombre} · ${sesion.rol}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 actions = {
                     if (esUTP) {
                         AssistChip(

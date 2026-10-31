@@ -18,6 +18,10 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): UserEntity?
 
+    // Read (Leer por rol, ej: todos los estudiantes del curso)
+    @Query("SELECT * FROM users WHERE role = :role ORDER BY name ASC")
+    fun getUsersByRole(role: String): Flow<List<UserEntity>>
+
     // Update (Actualizar)
     @Update
     suspend fun updateUser(user: UserEntity)

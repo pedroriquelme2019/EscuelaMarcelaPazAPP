@@ -4,12 +4,15 @@ import android.net.Uri
 
 sealed class Screen(val route: String) {
     data object Login : Screen("login_screen")
-    data object Main : Screen("main_screen/{rol}") {
-        fun withRol(rol: String) = "main_screen/${Uri.encode(rol)}"
-        const val ARG = "rol"
+    data object Main : Screen("main_screen/{email}/{nombre}/{rol}") {
+        fun withSesion(email: String, nombre: String, rol: String) =
+            "main_screen/${Uri.encode(email)}/${Uri.encode(nombre)}/${Uri.encode(rol)}"
+        const val ARG_EMAIL = "email"
+        const val ARG_NOMBRE = "nombre"
+        const val ARG_ROL = "rol"
     }
-    data object Home : Screen("home_screen")
-    data object Settings : Screen("settings_screen")
+    /** Pestañas principales (se deslizan con un HorizontalPager). */
+    data object Tabs : Screen("tabs_screen")
     data object Subject : Screen("subject_screen/{asignaturaId}/{asignaturaNombre}") {
         fun withAsignatura(id: Int, nombre: String) = "subject_screen/$id/${Uri.encode(nombre)}"
         const val ARG_ID = "asignaturaId"
@@ -22,5 +25,12 @@ sealed class Screen(val route: String) {
         const val ARG_ASIGNATURA = "asignatura"
         const val ARG_UNIDAD = "unidadTitulo"
     }
-    data object Monitoreo : Screen("monitoreo_screen")
+    /** Revisión de una tarea puntual (docente/UTP): quiénes la hicieron y sus notas. */
+    data object Revisar : Screen("revisar_screen/{tareaTitle}/{asignatura}/{unidadTitulo}") {
+        fun withContext(titulo: String, asignatura: String, unidad: String) =
+            "revisar_screen/${Uri.encode(titulo)}/${Uri.encode(asignatura)}/${Uri.encode(unidad)}"
+        const val ARG_TITLE = "tareaTitle"
+        const val ARG_ASIGNATURA = "asignatura"
+        const val ARG_UNIDAD = "unidadTitulo"
+    }
 }

@@ -19,7 +19,6 @@ import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(sesion: SesionUsuario, onCerrarSesion: () -> Unit) {
-    var highContrast by remember { mutableStateOf(false) }
     var confirmarSalida by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -65,14 +64,6 @@ fun SettingsScreen(sesion: SesionUsuario, onCerrarSesion: () -> Unit) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            SettingToggle(
-                label = "Alto contraste",
-                description = "Mejorar visibilidad de colores",
-                checked = highContrast,
-                onCheckedChange = { highContrast = it }
-            )
-            HorizontalDivider()
-
             Spacer(modifier = Modifier.weight(1f))
 
             OutlinedButton(
@@ -95,30 +86,5 @@ fun SettingsScreen(sesion: SesionUsuario, onCerrarSesion: () -> Unit) {
             },
             onCancelar = { confirmarSalida = false }
         )
-    }
-}
-
-@Composable
-private fun SettingToggle(
-    label: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = label, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

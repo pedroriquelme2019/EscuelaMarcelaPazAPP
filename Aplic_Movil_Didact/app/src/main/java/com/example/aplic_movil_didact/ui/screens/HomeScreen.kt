@@ -10,10 +10,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.aplic_movil_didact.data.entity.AsignaturaEntity
+import com.example.aplic_movil_didact.data.remote.dto.FeriadoExternaDto
 import com.example.aplic_movil_didact.viewmodels.ContentViewModel
 import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 
@@ -36,6 +38,12 @@ fun HomeScreen(
     val esUTP = sesion.esUTP
     val asignaturas by remember(esUTP) { contentViewModel.getAsignaturas(soloHabilitadas = !esUTP) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
+
+    val estadoRemoto by contentViewModel.estadoRemoto.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        contentViewModel.cargarFeriadosExternos()
+    }
 
     Scaffold(
         topBar = {
@@ -63,7 +71,12 @@ fun HomeScreen(
         }
     ) { innerPadding ->
         if (asignaturas.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("Cargando asignaturas...", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
@@ -77,9 +90,19 @@ fun HomeScreen(
                         modifier = Modifier.animateItem(),
                         asignatura = asignatura,
                         esUTP = esUTP,
-                        onClick = { if (asignatura.habilitada || esUTP) onSubjectClick(asignatura.id, asignatura.nombre) },
+                        onClick = {
+                            if (asignatura.habilitada || esUTP) {
+                                onSubjectClick(asignatura.id, asignatura.nombre)
+                            }
+                        },
                         onToggle = { contentViewModel.toggleAsignatura(asignatura) }
                     )
+                }
+
+                if (estadoRemoto.feriados.isNotEmpty()) {
+                    item(key = "feriados_externos") {
+                        FeriadosExternosCard(feriados = estadoRemoto.feriados)
+                    }
                 }
             }
         }
@@ -107,7 +130,11 @@ private fun AsignaturaCard(
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .alpha(if (!asignatura.habilitada && !esUTP) 0.4f else if (!asignatura.habilitada) 0.6f else 1f)
+            .alpha(
+                if (!asignatura.habilitada && !esUTP) 0.4f
+                else if (!asignatura.habilitada) 0.6f
+                else 1f
+            )
     ) {
         Row(
             modifier = Modifier
@@ -116,12 +143,20 @@ private fun AsignaturaCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(text = asignatura.nombre, style = MaterialTheme.typography.titleMedium)
                     if (esUTP && !asignatura.habilitada) {
                         SuggestionChip(
                             onClick = {},
-                            label = { Text("Deshabilitada", style = MaterialTheme.typography.labelSmall) },
+                            label = {
+                                Text(
+                                    "Deshabilitada",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
                             colors = SuggestionChipDefaults.suggestionChipColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 labelColor = MaterialTheme.colorScheme.onErrorContainer
@@ -150,6 +185,40 @@ private fun AsignaturaCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeriadosExternosCard(feriados: List<FeriadoExternaDto>) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Feriados / Calendario (API Externa)",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            feriados.forEach { feriado ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = feriado.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = feriado.date,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.aplic_movil_didact.data.entity.AsignaturaEntity
-import com.example.aplic_movil_didact.data.remote.dto.FeriadoExternaDto
 import com.example.aplic_movil_didact.viewmodels.ContentViewModel
 import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 
@@ -85,6 +84,17 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(innerPadding)
             ) {
+                // Calendario institucional
+                item(key = "calendario") {
+                    CalendarioInstitucionalCard(feriados = estadoRemoto.feriados)
+                }
+
+                // Encabezado de asignaturas
+                item(key = "titulo_asignaturas") {
+                    Text("Mis asignaturas", style = MaterialTheme.typography.titleLarge)
+                }
+
+                // Asignaturas
                 items(asignaturas, key = { it.id }) { asignatura ->
                     AsignaturaCard(
                         modifier = Modifier.animateItem(),
@@ -97,12 +107,6 @@ fun HomeScreen(
                         },
                         onToggle = { contentViewModel.toggleAsignatura(asignatura) }
                     )
-                }
-
-                if (estadoRemoto.feriados.isNotEmpty()) {
-                    item(key = "feriados_externos") {
-                        FeriadosExternosCard(feriados = estadoRemoto.feriados)
-                    }
                 }
             }
         }
@@ -190,36 +194,3 @@ private fun AsignaturaCard(
     }
 }
 
-@Composable
-private fun FeriadosExternosCard(feriados: List<FeriadoExternaDto>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Feriados / Calendario (API Externa)",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            feriados.forEach { feriado ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = feriado.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = feriado.date,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}

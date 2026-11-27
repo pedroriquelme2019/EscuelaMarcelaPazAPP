@@ -8,9 +8,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -23,67 +21,16 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-
-data class UnidadDocente(
-    val asignatura: String,
-    val titulo: String,
-    val oa: String,
-    val progreso: Float,
-)
-
-data class DocenteUiState(
-    val unidades: List<UnidadDocente> = listOf(
-        UnidadDocente("Lenguaje", "Comprensión Lectora OA1", "OA1 · 2° Básico", 0.72f),
-        UnidadDocente("Matemática", "Números hasta el 1000", "OA3 · 2° Básico", 0.55f),
-        UnidadDocente("Ciencias", "Seres Vivos del Entorno", "OA2 · 2° Básico", 0.40f),
-        UnidadDocente("Historia", "Mi Familia y Comunidad", "OA4 · 2° Básico", 0.88f),
-    ),
-    val intentosEditando: Map<String, Int> = emptyMap(),
-    val observacion: String = "",
-    val informeEnviado: Boolean = false,
-)
-
-class DocenteViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(DocenteUiState())
-    val uiState: StateFlow<DocenteUiState> = _uiState.asStateFlow()
-
-    fun incrementarIntentos(key: String) {
-        _uiState.update { s ->
-            val actual = s.intentosEditando[key] ?: 0
-            s.copy(intentosEditando = s.intentosEditando + (key to (actual + 1)))
-        }
-    }
-
-    fun decrementarIntentos(key: String) {
-        _uiState.update { s ->
-            val actual = s.intentosEditando[key] ?: 0
-            if (actual > 0)
-                s.copy(intentosEditando = s.intentosEditando + (key to (actual - 1)))
-            else s
-        }
-    }
-
-    fun onObservacionChange(value: String) {
-        _uiState.update { it.copy(observacion = value) }
-    }
-
-    fun enviarInforme() {
-        _uiState.update { it.copy(informeEnviado = true) }
-    }
-}
+import com.example.aplic_movil_didact.viewmodels.DocenteViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -176,8 +123,8 @@ fun DocenteScreen(docenteViewModel: DocenteViewModel = viewModel()) {
             }
 
             // Tarjetas por OA
-            items(uiState.unidades) { unidad ->
-                var expanded by remember { mutableStateOf(false) }
+            items(uiState.unidades, key = { it.oa }) { unidad ->
+                var expanded by rememberSaveable { mutableStateOf(false) }
                 val intentos = uiState.intentosEditando[unidad.oa] ?: 0
                 val progressColor = when {
                     unidad.progreso >= 0.70f -> Color(0xFF1B5E20)

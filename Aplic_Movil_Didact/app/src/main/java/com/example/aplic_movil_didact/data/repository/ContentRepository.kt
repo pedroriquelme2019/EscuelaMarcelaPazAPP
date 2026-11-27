@@ -16,7 +16,11 @@ import com.example.aplic_movil_didact.data.remote.api.FeriadosApiService
 import com.example.aplic_movil_didact.data.remote.client.RetrofitClient
 import com.example.aplic_movil_didact.data.remote.dto.EntregaRemoteDto
 import com.example.aplic_movil_didact.data.remote.dto.FeriadoExternaDto
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import java.util.Calendar
 
 class ContentRepository(
     private val asignaturaDao: AsignaturaDao,
@@ -100,7 +104,15 @@ class ContentRepository(
 
     // ---------- API Externa (Feriados) ----------
     suspend fun obtenerFeriadosExternos(): Result<List<FeriadoExternaDto>> = runCatching {
-        feriadosApi.getFeriados().data
+        val anioActual = Calendar.getInstance().get(Calendar.YEAR)
+        coroutineScope {
+            listOf(anioActual, anioActual + 1)
+                .map { anio -> async { feriadosApi.getFeriados(anio).data } }
+                .awaitAll()
+                .flatten()
+                .distinctBy { it.date to it.title }
+                .sortedBy { it.date }
+        }
     }
 
     // ---------- Informes pedagógicos (Room) ----------

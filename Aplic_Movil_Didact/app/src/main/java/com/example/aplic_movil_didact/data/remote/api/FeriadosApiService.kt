@@ -2,8 +2,9 @@ package com.example.aplic_movil_didact.data.remote.api
 
 import com.example.aplic_movil_didact.data.remote.dto.FeriadosResponseDto
 import retrofit2.http.GET
+import retrofit2.http.Path
 
 interface FeriadosApiService {
-    @GET("api/v1/feriados")
-    suspend fun getFeriados(): FeriadosResponseDto
+    @GET("holidays/{year}.json")
+    suspend fun getFeriados(@Path("year") year: Int): FeriadosResponseDto
 }

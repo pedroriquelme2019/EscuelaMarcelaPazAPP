@@ -1,11 +1,14 @@
 package com.example.aplic_movil_didact.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -19,7 +22,7 @@ import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(sesion: SesionUsuario, onCerrarSesion: () -> Unit) {
-    var confirmarSalida by remember { mutableStateOf(false) }
+    var confirmarSalida by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -30,6 +33,7 @@ fun SettingsScreen(sesion: SesionUsuario, onCerrarSesion: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {

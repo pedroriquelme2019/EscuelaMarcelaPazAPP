@@ -9,5 +9,6 @@ data class FeriadoExternaDto(
     val date: String,
     val title: String,
     val type: String = "",
-    val inalienable: Boolean = false
+    val inalienable: Boolean = false,
+    val extra: String = ""
 )

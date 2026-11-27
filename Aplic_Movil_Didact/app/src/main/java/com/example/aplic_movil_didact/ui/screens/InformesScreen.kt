@@ -12,15 +12,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.aplic_movil_didact.data.entity.EntregaEntity
 import com.example.aplic_movil_didact.data.entity.InformeEntity
 import com.example.aplic_movil_didact.ui.components.EstadoChip
-import com.example.aplic_movil_didact.ui.components.Notas
-import com.example.aplic_movil_didact.ui.components.formatoFecha
+import com.example.aplic_movil_didact.utils.formatoFecha
 import com.example.aplic_movil_didact.viewmodels.ContentViewModel
 import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 
@@ -44,9 +43,11 @@ fun InformesScreen(sesion: SesionUsuario, contentViewModel: ContentViewModel) {
     val estudiantes by remember { contentViewModel.getEstudiantes() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
-    var mostrarSolicitud by remember { mutableStateOf(false) }
-    var informeAResponder by remember { mutableStateOf<InformeEntity?>(null) }
-    var informeAVer by remember { mutableStateOf<InformeEntity?>(null) }
+    var mostrarSolicitud by rememberSaveable { mutableStateOf(false) }
+    var informeAResponderId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var informeAVerId by rememberSaveable { mutableStateOf<Int?>(null) }
+    val informeAResponder = informes.firstOrNull { it.id == informeAResponderId }
+    val informeAVer = informes.firstOrNull { it.id == informeAVerId }
 
     val pendientes = informes.count { !it.enviado }
 
@@ -115,8 +116,8 @@ fun InformesScreen(sesion: SesionUsuario, contentViewModel: ContentViewModel) {
                         informe = informe,
                         esDocente = sesion.esDocente,
                         modifier = Modifier.animateItem(),
-                        onResponder = { informeAResponder = informe },
-                        onVer = { informeAVer = informe }
+                        onResponder = { informeAResponderId = informe.id },
+                        onVer = { informeAVerId = informe.id }
                     )
                 }
             }
@@ -135,22 +136,28 @@ fun InformesScreen(sesion: SesionUsuario, contentViewModel: ContentViewModel) {
     }
 
     informeAResponder?.let { informe ->
-        val borrador = remember(informe.id) {
-            generarBorradorInforme(informe, entregas, estudiantes.size, sesion.nombre)
+        val borrador = remember(informe.id, entregas, estudiantes.size, sesion.nombre) {
+            contentViewModel.generarBorradorInforme(
+                informe = informe,
+                todasLasEntregas = entregas,
+                totalEstudiantes = estudiantes.size,
+                docente = sesion.nombre,
+                cursoCompleto = CURSO_COMPLETO
+            )
         }
         ResponderInformeDialog(
             informe = informe,
             borradorInicial = borrador,
-            onDismiss = { informeAResponder = null },
+            onDismiss = { informeAResponderId = null },
             onEnviar = { contenido ->
                 contentViewModel.responderInforme(informe, contenido, sesion.nombre)
-                informeAResponder = null
+                informeAResponderId = null
             }
         )
     }
 
     informeAVer?.let { informe ->
-        VerInformeDialog(informe = informe, onDismiss = { informeAVer = null })
+        VerInformeDialog(informe = informe, onDismiss = { informeAVerId = null })
     }
 }
 
@@ -222,9 +229,9 @@ private fun SolicitarInformeDialog(
     onDismiss: () -> Unit,
     onSolicitar: (String, String) -> Unit
 ) {
-    var seleccion by remember { mutableStateOf(opciones.first()) }
-    var expandido by remember { mutableStateOf(false) }
-    var indicaciones by remember { mutableStateOf("") }
+    var seleccion by rememberSaveable { mutableStateOf(opciones.first()) }
+    var expandido by rememberSaveable { mutableStateOf(false) }
+    var indicaciones by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -274,7 +281,7 @@ private fun ResponderInformeDialog(
     onDismiss: () -> Unit,
     onEnviar: (String) -> Unit
 ) {
-    var contenido by remember { mutableStateOf(borradorInicial) }
+    var contenido by rememberSaveable { mutableStateOf(borradorInicial) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -321,52 +328,4 @@ private fun VerInformeDialog(informe: InformeEntity, onDismiss: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } }
     )
-}
-
-/** Arma el borrador del informe con los datos reales de entregas y notas. */
-private fun generarBorradorInforme(
-    informe: InformeEntity,
-    todasLasEntregas: List<EntregaEntity>,
-    totalEstudiantes: Int,
-    docente: String
-): String {
-    val entregas = if (informe.asignatura == CURSO_COMPLETO) todasLasEntregas
-    else todasLasEntregas.filter { it.asignatura == informe.asignatura }
-
-    val notas = entregas.mapNotNull { it.calificacion }
-    val promedio = Notas.promedio(notas)
-    val bajo4 = notas.count { it < Notas.APROBACION }
-    val pendientes = entregas.count { !it.calificada }
-
-    val porTarea = entregas
-        .groupBy { Triple(it.asignatura, it.unidadTitulo, it.tareaTitle) }
-        .entries
-        .sortedBy { "${it.key.first}|${it.key.second}|${it.key.third}" }
-        .joinToString("\n") { (clave, lista) ->
-            val prom = Notas.promedio(lista.mapNotNull { it.calificacion })
-            val prefijo = if (informe.asignatura == CURSO_COMPLETO) "${clave.first} / " else ""
-            "- $prefijo${clave.second} / ${clave.third}: ${lista.size} de $totalEstudiantes entregaron" +
-                (prom?.let { ", promedio ${Notas.formato(it)}" } ?: ", sin notas aún")
-        }
-
-    return buildString {
-        appendLine("INFORME PEDAGÓGICO – ${informe.asignatura}")
-        appendLine("Docente: $docente")
-        appendLine("Fecha: ${formatoFecha(System.currentTimeMillis())}")
-        appendLine()
-        appendLine("1. Resumen de entregas")
-        appendLine("- Entregas recibidas: ${entregas.size}")
-        appendLine("- Calificadas: ${notas.size} (por revisar: $pendientes)")
-        appendLine("- Promedio: ${promedio?.let { Notas.formato(it) } ?: "sin notas aún"}")
-        appendLine("- Notas bajo 4.0: $bajo4")
-        appendLine()
-        appendLine("2. Detalle por tarea")
-        appendLine(if (porTarea.isBlank()) "- Sin entregas registradas" else porTarea)
-        appendLine()
-        appendLine("3. Observaciones del docente")
-        appendLine("- ")
-        appendLine()
-        appendLine("4. Estudiantes que necesitan apoyo")
-        append("- ")
-    }
 }

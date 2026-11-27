@@ -12,6 +12,8 @@ import com.example.aplic_movil_didact.data.local.entity.UserEntity
 import com.example.aplic_movil_didact.data.remote.dto.EntregaRemoteDto
 import com.example.aplic_movil_didact.data.remote.dto.FeriadoExternaDto
 import com.example.aplic_movil_didact.data.repository.ContentRepository
+import com.example.aplic_movil_didact.utils.Notas
+import com.example.aplic_movil_didact.utils.formatoFecha
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +27,7 @@ data class EstadoRemotoUi(
     val mensajeRemoto: String? = null
 )
 
-class ContentViewModel(
+class ContentViewModel @JvmOverloads constructor(
     app: Application,
     private val repositoryOverride: ContentRepository? = null
 ) : AndroidViewModel(app) {
@@ -64,8 +66,26 @@ class ContentViewModel(
     fun getEntregaDeEstudiante(email: String, asignatura: String, unidad: String, tarea: String): Flow<EntregaEntity?> =
         repo.getEntregaDeEstudiante(email, asignatura, unidad, tarea)
 
-    /** onResultado(false) = la tarea ya estaba entregada y no se guardó de nuevo. */
-    fun entregarTarea(entrega: EntregaEntity, onResultado: (Boolean) -> Unit) = viewModelScope.launch {
+    /** onResultado(false) = la tarea ya estaba entregada y no se guard? de nuevo. */
+    fun entregarTarea(
+        estudianteEmail: String,
+        estudianteNombre: String,
+        asignatura: String,
+        unidadTitulo: String,
+        tareaTitle: String,
+        respuestaTexto: String,
+        nombreArchivo: String?,
+        onResultado: (Boolean) -> Unit
+    ) = viewModelScope.launch {
+        val entrega = EntregaEntity(
+            estudianteEmail = estudianteEmail,
+            estudianteNombre = estudianteNombre,
+            asignatura = asignatura,
+            unidadTitulo = unidadTitulo,
+            tareaTitle = tareaTitle,
+            respuestaTexto = respuestaTexto,
+            nombreArchivo = nombreArchivo
+        )
         onResultado(repo.insertEntrega(entrega))
     }
 
@@ -132,7 +152,7 @@ class ContentViewModel(
         repo.obtenerFeriadosExternos()
             .onSuccess { lista ->
                 _estadoRemoto.value = _estadoRemoto.value.copy(
-                    feriados = lista.take(5),
+                    feriados = lista,
                     cargandoRemoto = false
                 )
             }
@@ -150,6 +170,53 @@ class ContentViewModel(
 
     // ---------- Informes pedagógicos ----------
     fun getInformes(): Flow<List<InformeEntity>> = repo.getInformes()
+
+    fun generarBorradorInforme(
+        informe: InformeEntity,
+        todasLasEntregas: List<EntregaEntity>,
+        totalEstudiantes: Int,
+        docente: String,
+        cursoCompleto: String
+    ): String {
+        val entregas = if (informe.asignatura == cursoCompleto) todasLasEntregas
+        else todasLasEntregas.filter { it.asignatura == informe.asignatura }
+
+        val notas = entregas.mapNotNull { it.calificacion }
+        val promedio = Notas.promedio(notas)
+        val bajo4 = notas.count { it < Notas.APROBACION }
+        val pendientes = entregas.count { !it.calificada }
+        val porTarea = entregas
+            .groupBy { Triple(it.asignatura, it.unidadTitulo, it.tareaTitle) }
+            .entries
+            .sortedBy { "${it.key.first}|${it.key.second}|${it.key.third}" }
+            .joinToString("\n") { (clave, lista) ->
+                val prom = Notas.promedio(lista.mapNotNull { it.calificacion })
+                val prefijo = if (informe.asignatura == cursoCompleto) "${clave.first} / " else ""
+                "- $prefijo${clave.second} / ${clave.third}: ${lista.size} de $totalEstudiantes entregaron" +
+                    (prom?.let { ", promedio ${Notas.formato(it)}" } ?: ", sin notas disponibles")
+            }
+
+        return buildString {
+            appendLine("INFORME PEDAGOGICO - ${informe.asignatura}")
+            appendLine("Docente: $docente")
+            appendLine("Fecha: ${formatoFecha(System.currentTimeMillis())}")
+            appendLine()
+            appendLine("1. Resumen de entregas")
+            appendLine("- Entregas recibidas: ${entregas.size}")
+            appendLine("- Calificadas: ${notas.size} (por revisar: $pendientes)")
+            appendLine("- Promedio: ${promedio?.let { Notas.formato(it) } ?: "sin notas disponibles"}")
+            appendLine("- Notas bajo 4.0: $bajo4")
+            appendLine()
+            appendLine("2. Detalle por tarea")
+            appendLine(if (porTarea.isBlank()) "- Sin entregas registradas" else porTarea)
+            appendLine()
+            appendLine("3. Observaciones del docente")
+            appendLine("- ")
+            appendLine()
+            appendLine("4. Estudiantes que necesitan apoyo")
+            append("- ")
+        }
+    }
 
     fun solicitarInforme(asignatura: String, indicaciones: String, solicitadoPor: String) = viewModelScope.launch {
         repo.solicitarInforme(asignatura, indicaciones, solicitadoPor)

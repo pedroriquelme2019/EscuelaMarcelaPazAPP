@@ -160,9 +160,14 @@ class ContentRepositoryTest {
     @Test
     fun `obtenerFeriadosExternos retorna lista desde API externa`() = runTest {
         val feriadosMock = listOf(
-            FeriadoExternaDto(date = "2026-09-18", title = "Fiestas Patrias", type = "Civil", inalienable = true)
+            FeriadoExternaDto(
+                date = "2026-09-18",
+                title = "Fiestas Patrias",
+                type = "Civil",
+                inalienable = true
+            )
         )
-        coEvery { feriadosApi.getFeriados() } returns FeriadosResponseDto(status = "success", data = feriadosMock)
+        coEvery { feriadosApi.getFeriados(any()) } returns FeriadosResponseDto(status = "success", data = feriadosMock)
 
         val resultado = repository.obtenerFeriadosExternos()
 

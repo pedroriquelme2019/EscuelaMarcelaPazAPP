@@ -41,7 +41,7 @@ class ContentViewModelTest {
     }
 
     @Test
-    fun `entregarTarea invoca callback con true cuando repositorio guarda correctamente`() = runTest {
+    fun `entregarTarea invoca callback con true cuando repositorio guarda correctamente`() = runTest(testDispatcher) {
         val entrega = EntregaEntity(
             estudianteEmail = "carlos.lopez@emp.cl",
             estudianteNombre = "Carlos López",
@@ -50,10 +50,28 @@ class ContentViewModelTest {
             tareaTitle = "Tarea 1",
             respuestaTexto = "Resuelto"
         )
-        coEvery { repository.insertEntrega(entrega) } returns true
+        coEvery {
+            repository.insertEntrega(match {
+                it.estudianteEmail == entrega.estudianteEmail &&
+                    it.estudianteNombre == entrega.estudianteNombre &&
+                    it.asignatura == entrega.asignatura &&
+                    it.unidadTitulo == entrega.unidadTitulo &&
+                    it.tareaTitle == entrega.tareaTitle &&
+                    it.respuestaTexto == entrega.respuestaTexto &&
+                    it.nombreArchivo == entrega.nombreArchivo
+            })
+        } returns true
 
         var resultadoCallback = false
-        viewModel.entregarTarea(entrega) { ok -> resultadoCallback = ok }
+        viewModel.entregarTarea(
+            estudianteEmail = entrega.estudianteEmail,
+            estudianteNombre = entrega.estudianteNombre,
+            asignatura = entrega.asignatura,
+            unidadTitulo = entrega.unidadTitulo,
+            tareaTitle = entrega.tareaTitle,
+            respuestaTexto = entrega.respuestaTexto,
+            nombreArchivo = entrega.nombreArchivo
+        ) { ok -> resultadoCallback = ok }
         advanceUntilIdle()
 
         resultadoCallback.shouldBeTrue()

@@ -22,7 +22,7 @@ import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(sesion: SesionUsuario, onCerrarSesion: () -> Unit) {
-    var confirmarSalida by rememberSaveable { mutableStateOf(false) }
+    var confirmarSalida by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {

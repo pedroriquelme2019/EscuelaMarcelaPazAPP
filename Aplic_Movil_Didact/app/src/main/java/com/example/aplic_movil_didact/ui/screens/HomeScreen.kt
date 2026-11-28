@@ -10,10 +10,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,6 +37,12 @@ fun HomeScreen(
     val esUTP = sesion.esUTP
     val asignaturas by remember(esUTP) { contentViewModel.getAsignaturas(soloHabilitadas = !esUTP) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
+
+    val estadoRemoto by contentViewModel.estadoRemoto.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        contentViewModel.cargarFeriadosExternos()
+    }
 
     Scaffold(
         topBar = {
@@ -63,7 +70,12 @@ fun HomeScreen(
         }
     ) { innerPadding ->
         if (asignaturas.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("Cargando asignaturas...", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
@@ -72,12 +84,27 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(innerPadding)
             ) {
+                // Calendario institucional
+                item(key = "calendario") {
+                    CalendarioInstitucionalCard(feriados = estadoRemoto.feriados)
+                }
+
+                // Encabezado de asignaturas
+                item(key = "titulo_asignaturas") {
+                    Text("Mis asignaturas", style = MaterialTheme.typography.titleLarge)
+                }
+
+                // Asignaturas
                 items(asignaturas, key = { it.id }) { asignatura ->
                     AsignaturaCard(
                         modifier = Modifier.animateItem(),
                         asignatura = asignatura,
                         esUTP = esUTP,
-                        onClick = { if (asignatura.habilitada || esUTP) onSubjectClick(asignatura.id, asignatura.nombre) },
+                        onClick = {
+                            if (asignatura.habilitada || esUTP) {
+                                onSubjectClick(asignatura.id, asignatura.nombre)
+                            }
+                        },
                         onToggle = { contentViewModel.toggleAsignatura(asignatura) }
                     )
                 }
@@ -107,7 +134,11 @@ private fun AsignaturaCard(
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .alpha(if (!asignatura.habilitada && !esUTP) 0.4f else if (!asignatura.habilitada) 0.6f else 1f)
+            .alpha(
+                if (!asignatura.habilitada && !esUTP) 0.4f
+                else if (!asignatura.habilitada) 0.6f
+                else 1f
+            )
     ) {
         Row(
             modifier = Modifier
@@ -116,12 +147,20 @@ private fun AsignaturaCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(text = asignatura.nombre, style = MaterialTheme.typography.titleMedium)
                     if (esUTP && !asignatura.habilitada) {
                         SuggestionChip(
                             onClick = {},
-                            label = { Text("Deshabilitada", style = MaterialTheme.typography.labelSmall) },
+                            label = {
+                                Text(
+                                    "Deshabilitada",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
                             colors = SuggestionChipDefaults.suggestionChipColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 labelColor = MaterialTheme.colorScheme.onErrorContainer
@@ -154,3 +193,4 @@ private fun AsignaturaCard(
         }
     }
 }
+

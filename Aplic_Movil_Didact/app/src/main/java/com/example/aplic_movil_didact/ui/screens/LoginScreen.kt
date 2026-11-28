@@ -4,6 +4,8 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -53,6 +55,7 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -128,19 +131,6 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-
-                // Ya no se elige el rol (punto 5): se detecta por el dominio del correo
-                AnimatedVisibility(
-                    visible = uiState.rolDetectado != null,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
-                ) {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text("Ingresarás como: ${uiState.rolDetectado ?: ""}") },
-                        leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                    )
-                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 

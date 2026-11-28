@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -36,7 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.aplic_movil_didact.data.entity.EntregaEntity
 import com.example.aplic_movil_didact.ui.components.EstadoChip
 import com.example.aplic_movil_didact.ui.components.NotaBadge
-import com.example.aplic_movil_didact.ui.components.formatoFecha
+import com.example.aplic_movil_didact.utils.formatoFecha
 import com.example.aplic_movil_didact.viewmodels.ContentViewModel
 import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 import kotlinx.coroutines.flow.map
@@ -55,9 +56,9 @@ fun TaskScreen(
     contentViewModel: ContentViewModel,
     onBack: () -> Unit
 ) {
-    var respuesta by remember { mutableStateOf("") }
-    var archivoUri by remember { mutableStateOf<Uri?>(null) }
-    var nombreArchivo by remember { mutableStateOf<String?>(null) }
+    var respuesta by rememberSaveable { mutableStateOf("") }
+    var archivoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var nombreArchivo by rememberSaveable { mutableStateOf<String?>(null) }
     var enviando by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -273,15 +274,13 @@ fun TaskScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             enviando = true
                             contentViewModel.entregarTarea(
-                                EntregaEntity(
-                                    estudianteEmail = sesion.email,
-                                    estudianteNombre = sesion.nombre,
-                                    asignatura = asignatura,
-                                    unidadTitulo = unidadTitulo,
-                                    tareaTitle = tareaTitle,
-                                    respuestaTexto = respuesta,
-                                    nombreArchivo = nombreArchivo
-                                )
+                                estudianteEmail = sesion.email,
+                                estudianteNombre = sesion.nombre,
+                                asignatura = asignatura,
+                                unidadTitulo = unidadTitulo,
+                                tareaTitle = tareaTitle,
+                                respuestaTexto = respuesta,
+                                nombreArchivo = nombreArchivo
                             ) { guardada ->
                                 enviando = false
                                 if (!guardada) {

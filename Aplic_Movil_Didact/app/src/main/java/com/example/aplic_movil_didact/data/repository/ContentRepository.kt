@@ -11,16 +11,27 @@ import com.example.aplic_movil_didact.data.entity.InformeEntity
 import com.example.aplic_movil_didact.data.entity.UnidadEntity
 import com.example.aplic_movil_didact.data.local.dao.UserDao
 import com.example.aplic_movil_didact.data.local.entity.UserEntity
+import com.example.aplic_movil_didact.data.remote.api.EntregaApiService
+import com.example.aplic_movil_didact.data.remote.api.FeriadosApiService
+import com.example.aplic_movil_didact.data.remote.client.RetrofitClient
+import com.example.aplic_movil_didact.data.remote.dto.EntregaRemoteDto
+import com.example.aplic_movil_didact.data.remote.dto.FeriadoExternaDto
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import java.util.Calendar
 
 class ContentRepository(
     private val asignaturaDao: AsignaturaDao,
     private val unidadDao: UnidadDao,
     private val entregaDao: EntregaDao,
     private val informeDao: InformeDao,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val entregaApi: EntregaApiService = RetrofitClient.entregaApi,
+    private val feriadosApi: FeriadosApiService = RetrofitClient.feriadosApi
 ) {
-    // ---------- Asignaturas / Unidades ----------
+    // ---------- Asignaturas / Unidades (Room) ----------
     fun getAsignaturas(soloHabilitadas: Boolean): Flow<List<AsignaturaEntity>> =
         if (soloHabilitadas) asignaturaDao.getHabilitadas() else asignaturaDao.getAll()
 
@@ -34,12 +45,12 @@ class ContentRepository(
     suspend fun toggleUnidad(unidad: UnidadEntity) =
         unidadDao.update(unidad.copy(habilitada = !unidad.habilitada))
 
-    // ---------- Usuarios ----------
+    // ---------- Usuarios (Room) ----------
     suspend fun getUserByEmail(email: String): UserEntity? = userDao.getUserByEmail(email)
 
     fun getEstudiantes(): Flow<List<UserEntity>> = userDao.getUsersByRole(Roles.ESTUDIANTE)
 
-    // ---------- Entregas ----------
+    // ---------- Entregas (Room + Microservicio Spring Boot) ----------
     fun getEntregas(): Flow<List<EntregaEntity>> = entregaDao.getAll()
 
     fun getEntregasDeEstudiante(email: String): Flow<List<EntregaEntity>> = entregaDao.getByEstudiante(email)
@@ -47,19 +58,64 @@ class ContentRepository(
     fun getEntregaDeEstudiante(email: String, asignatura: String, unidad: String, tarea: String): Flow<EntregaEntity?> =
         entregaDao.getEntregaDeEstudiante(email, asignatura, unidad, tarea)
 
-    /** Devuelve false si la tarea ya estaba entregada (no se permite volver a subirla). */
+    /** Devuelve false si la tarea ya estaba entregada en Room. Además intenta sincronizar con Spring Boot. */
     suspend fun insertEntrega(entrega: EntregaEntity): Boolean {
         val yaExiste = entregaDao.contarEntregas(
             entrega.estudianteEmail, entrega.asignatura, entrega.unidadTitulo, entrega.tareaTitle
         ) > 0
         if (yaExiste) return false
-        return entregaDao.insert(entrega) != -1L
+
+        val insertada = entregaDao.insert(entrega) != -1L
+        if (insertada) {
+            sincronizarEntregaRemota(entrega)
+        }
+        return insertada
+    }
+
+    suspend fun sincronizarEntregaRemota(entrega: EntregaEntity): Result<EntregaRemoteDto> = runCatching {
+        val dto = EntregaRemoteDto(
+            estudianteEmail = entrega.estudianteEmail,
+            asignatura = entrega.asignatura,
+            tareaTitulo = entrega.tareaTitle,
+            estado = if (entrega.calificada) "CALIFICADA" else "ENTREGADA",
+            calificacion = entrega.calificacion?.toDouble(),
+            observacion = entrega.observacion
+        )
+        entregaApi.crearEntrega(dto)
+    }
+
+    suspend fun obtenerEntregasRemotas(email: String? = null): Result<List<EntregaRemoteDto>> = runCatching {
+        entregaApi.getEntregas(email)
+    }
+
+    suspend fun actualizarEntregaRemota(id: Long, dto: EntregaRemoteDto): Result<EntregaRemoteDto> = runCatching {
+        entregaApi.actualizarEntrega(id, dto)
+    }
+
+    suspend fun eliminarEntregaRemota(id: Long): Result<Unit> = runCatching {
+        val response = entregaApi.eliminarEntrega(id)
+        if (!response.isSuccessful) {
+            error("Error al eliminar entrega en microservicio (${response.code()})")
+        }
     }
 
     suspend fun calificarEntrega(entrega: EntregaEntity, calificacion: Float, observacion: String) =
         entregaDao.update(entrega.copy(calificacion = calificacion, observacion = observacion, calificada = true))
 
-    // ---------- Informes pedagógicos ----------
+    // ---------- API Externa (Feriados) ----------
+    suspend fun obtenerFeriadosExternos(): Result<List<FeriadoExternaDto>> = runCatching {
+        val anioActual = Calendar.getInstance().get(Calendar.YEAR)
+        coroutineScope {
+            listOf(anioActual, anioActual + 1)
+                .map { anio -> async { feriadosApi.getFeriados(anio).data } }
+                .awaitAll()
+                .flatten()
+                .distinctBy { it.date to it.title }
+                .sortedBy { it.date }
+        }
+    }
+
+    // ---------- Informes pedagógicos (Room) ----------
     fun getInformes(): Flow<List<InformeEntity>> = informeDao.getAll()
 
     suspend fun solicitarInforme(asignatura: String, indicaciones: String, solicitadoPor: String) =

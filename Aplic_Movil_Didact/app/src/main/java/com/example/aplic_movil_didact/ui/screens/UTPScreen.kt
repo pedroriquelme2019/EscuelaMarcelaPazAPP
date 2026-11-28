@@ -18,29 +18,16 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.aplic_movil_didact.viewmodels.UTPViewModel
+import com.example.aplic_movil_didact.viewmodels.Unidad
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-data class Unidad(
-    val asignatura: String,
-    val titulo: String,
-    val oa: String,
-    val estado: String,
-    val autor: String,
-    val fecha: String,
-)
-
-private val unidades = listOf(
-    Unidad("Lenguaje", "Comprensión Lectora OA1", "OA1", "Publicado", "Prof. González", "10/10"),
-    Unidad("Lenguaje", "Producción de Textos OA3", "OA3", "En revisión", "Prof. González", "12/10"),
-    Unidad("Matemática", "Números hasta el 1000", "OA3", "Autorizado", "Prof. Carlos", "08/10"),
-    Unidad("Matemática", "Geometría Básica OA7", "OA7", "Borrador", "Prof. Carlos", "14/10"),
-    Unidad("Ciencias", "Seres Vivos del Entorno", "OA2", "En revisión", "Prof. Sandoval", "11/10"),
-    Unidad("Historia", "Mi Familia y Comunidad", "OA4", "Publicado", "Prof. Pérez", "09/10"),
-)
 
 private fun estadoColor(estado: String): Color = when (estado) {
     "Publicado" -> Color(0xFF1B5E20)
@@ -51,21 +38,23 @@ private fun estadoColor(estado: String): Color = when (estado) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UTPScreen() {
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogUnidad by remember { mutableStateOf("") }
+fun UTPScreen(utpViewModel: UTPViewModel = viewModel()) {
+    val uiState by utpViewModel.uiState.collectAsStateWithLifecycle()
+    val unidadSeleccionada = uiState.unidades.firstOrNull { it.clave == uiState.claveUnidadAprobar }
 
-    if (showDialog) {
+    if (unidadSeleccionada != null) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = utpViewModel::cancelarAprobacion,
             icon = { Icon(Icons.Filled.CheckCircle, contentDescription = null) },
             title = { Text("Aprobar unidad") },
-            text = { Text("¿Confirmas la aprobación de \"$dialogUnidad\"? Esta acción cambiará su estado a Autorizado.") },
+            text = {
+                Text("\u00bfConfirmas la aprobaci\u00f3n de \"${unidadSeleccionada.titulo}\"? Esta acci\u00f3n cambiar\u00e1 su estado a Autorizado.")
+            },
             confirmButton = {
-                Button(onClick = { showDialog = false }) { Text("Aprobar") }
+                Button(onClick = utpViewModel::aprobarUnidad) { Text("Aprobar") }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showDialog = false }) { Text("Cancelar") }
+                OutlinedButton(onClick = utpViewModel::cancelarAprobacion) { Text("Cancelar") }
             }
         )
     }
@@ -121,9 +110,9 @@ fun UTPScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    StatCard("6", "Unidades", Modifier.weight(1f))
-                    StatCard("2", "En revisión", Modifier.weight(1f))
-                    StatCard("2", "Publicadas", Modifier.weight(1f))
+                    StatCard(uiState.unidades.size.toString(), "Unidades", Modifier.weight(1f))
+                    StatCard(uiState.unidades.count { it.estado.startsWith("En revisi") }.toString(), "En revisión", Modifier.weight(1f))
+                    StatCard(uiState.unidades.count { it.estado == "Publicado" }.toString(), "Publicadas", Modifier.weight(1f))
                 }
             }
 
@@ -169,8 +158,8 @@ fun UTPScreen() {
                 )
             }
 
-            items(unidades) { unidad ->
-                var expanded by remember { mutableStateOf(false) }
+            items(uiState.unidades, key = { it.clave }) { unidad ->
+                var expanded by rememberSaveable { mutableStateOf(false) }
                 ElevatedCard(
                     onClick = { expanded = !expanded },
                     modifier = Modifier.fillMaxWidth()
@@ -234,10 +223,7 @@ fun UTPScreen() {
                                         Text("Editar")
                                     }
                                     Button(
-                                        onClick = {
-                                            dialogUnidad = unidad.titulo
-                                            showDialog = true
-                                        },
+                                        onClick = { utpViewModel.seleccionarParaAprobar(unidad.clave) },
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Icon(

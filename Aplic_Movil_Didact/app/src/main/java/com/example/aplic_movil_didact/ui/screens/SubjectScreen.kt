@@ -31,7 +31,7 @@ import com.example.aplic_movil_didact.data.entity.EntregaEntity
 import com.example.aplic_movil_didact.data.entity.UnidadEntity
 import com.example.aplic_movil_didact.ui.components.EstadoChip
 import com.example.aplic_movil_didact.ui.components.NotaBadge
-import com.example.aplic_movil_didact.ui.components.Notas
+import com.example.aplic_movil_didact.utils.Notas
 import com.example.aplic_movil_didact.viewmodels.ContentViewModel
 import com.example.aplic_movil_didact.viewmodels.SesionUsuario
 import kotlinx.coroutines.delay

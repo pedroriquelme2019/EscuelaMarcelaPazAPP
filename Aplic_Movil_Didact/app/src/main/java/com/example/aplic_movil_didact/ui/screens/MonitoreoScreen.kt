@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,8 +28,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.aplic_movil_didact.data.entity.EntregaEntity
 import com.example.aplic_movil_didact.ui.components.EstadoChip
 import com.example.aplic_movil_didact.ui.components.NotaBadge
-import com.example.aplic_movil_didact.ui.components.Notas
-import com.example.aplic_movil_didact.ui.components.formatoFecha
+import com.example.aplic_movil_didact.utils.Notas
+import com.example.aplic_movil_didact.utils.formatoFecha
 import com.example.aplic_movil_didact.viewmodels.ContentViewModel
 
 /** Si viene un filtro, la pantalla muestra solo las entregas de esa tarea (botón "Revisar"). */
@@ -54,8 +55,10 @@ fun MonitoreoScreen(
     val estudiantes by remember { contentViewModel.getEstudiantes() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
-    var entregaSeleccionada by remember { mutableStateOf<EntregaEntity?>(null) }
-    var filtroEstado by remember { mutableStateOf(FiltroEstado.TODAS) }
+    var entregaSeleccionadaId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var filtroEstadoNombre by rememberSaveable { mutableStateOf(FiltroEstado.TODAS.name) }
+    val filtroEstado = FiltroEstado.valueOf(filtroEstadoNombre)
+    val entregaSeleccionada = todas.firstOrNull { it.id == entregaSeleccionadaId }
 
     val entregas = remember(todas, filtro) {
         if (filtro == null) todas
@@ -170,7 +173,7 @@ fun MonitoreoScreen(
                     FiltroEstado.entries.forEach { f ->
                         FilterChip(
                             selected = filtroEstado == f,
-                            onClick = { filtroEstado = f },
+                            onClick = { filtroEstadoNombre = f.name },
                             label = { Text(f.label) }
                         )
                     }
@@ -236,7 +239,7 @@ fun MonitoreoScreen(
                         entrega = entrega,
                         mostrarTarea = filtro == null,
                         modifier = Modifier.animateItem(),
-                        onClick = { entregaSeleccionada = entrega }
+                        onClick = { entregaSeleccionadaId = entrega.id }
                     )
                 }
             }
@@ -247,10 +250,10 @@ fun MonitoreoScreen(
         CalificacionDialog(
             entrega = entrega,
             soloLectura = !puedeCalificar,
-            onDismiss = { entregaSeleccionada = null },
+            onDismiss = { entregaSeleccionadaId = null },
             onGuardar = { nota, obs ->
                 contentViewModel.calificarEntrega(entrega, nota, obs)
-                entregaSeleccionada = null
+                entregaSeleccionadaId = null
             }
         )
     }
@@ -330,9 +333,9 @@ private fun CalificacionDialog(
     onDismiss: () -> Unit,
     onGuardar: (Float, String) -> Unit
 ) {
-    var notaTexto by remember { mutableStateOf(entrega.calificacion?.let { Notas.formato(it) } ?: "") }
-    var observacion by remember { mutableStateOf(entrega.observacion ?: "") }
-    var notaError by remember { mutableStateOf(false) }
+    var notaTexto by rememberSaveable(entrega.id) { mutableStateOf(entrega.calificacion?.let { Notas.formato(it) } ?: "") }
+    var observacion by rememberSaveable(entrega.id) { mutableStateOf(entrega.observacion ?: "") }
+    var notaError by rememberSaveable(entrega.id) { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
